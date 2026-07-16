@@ -1,4 +1,4 @@
-# 🧬 AI-Powered Drug Molecule Generation using PyTorch & SELFIES
+# 🧬 SELFIES-LSTM with Sequential ADMET Filtering: A Systematic Benchmark of Per-Stage Attrition and the Novelty-QED Trade-off in Drug-Like Molecular Generation
 
 A deep learning project that leverages a **2-Layer Stacked LSTM** neural network to generate novel drug-like molecules. This project upgrades traditional character-level SMILES generation by explicitly employing **SELFIES (Self-Referencing Embedded Strings)** to syntactically guarantee valid chemical representations, evaluated against rigorous, real-world ADMET properties.
 
