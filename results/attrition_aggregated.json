@@ -1,0 +1,34 @@
+{
+  "0.2": {
+    "stage_0_generated": 996,
+    "stage_1_rdkit_valid": 996,
+    "stage_2_geometric": 351,
+    "stage_3_pains": 329,
+    "stage_4_lipinski_veber": 271,
+    "stage_5_unique_final": 271
+  },
+  "0.5": {
+    "stage_0_generated": 999,
+    "stage_1_rdkit_valid": 999,
+    "stage_2_geometric": 415,
+    "stage_3_pains": 400,
+    "stage_4_lipinski_veber": 369,
+    "stage_5_unique_final": 369
+  },
+  "0.7": {
+    "stage_0_generated": 997,
+    "stage_1_rdkit_valid": 997,
+    "stage_2_geometric": 412,
+    "stage_3_pains": 396,
+    "stage_4_lipinski_veber": 368,
+    "stage_5_unique_final": 368
+  },
+  "1.0": {
+    "stage_0_generated": 995,
+    "stage_1_rdkit_valid": 995,
+    "stage_2_geometric": 408,
+    "stage_3_pains": 382,
+    "stage_4_lipinski_veber": 370,
+    "stage_5_unique_final": 370
+  }
+}

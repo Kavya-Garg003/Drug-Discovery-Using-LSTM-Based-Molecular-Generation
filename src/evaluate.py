@@ -11,10 +11,12 @@ Implements:
   7. Internal Diversity — avg pairwise Tanimoto distance (MOSES metric)
   8. Scaffold Diversity — unique Murcko scaffolds / total valid
   9. Final Score   — composite (drug_score + qed) / 2 − toxicity
+  10. Attrition    — per-stage SAFE filter attrition counts (new)
 
 CRITICAL FIX vs original notebook:
   - Toxicity is now based on validated ADMET descriptors, not string length
   - Minimum MW/atom filter applied so trivial molecules never top the ranking
+  - Attrition tracking added per reviewer request
 """
 
 import os, json, warnings
@@ -101,31 +103,41 @@ def lipinski_score(mol) -> float:
 
 
 # ----------------------------------------------------------------------------─
-# Filters
+# Filters (SAFE stages — now individually instrumented)
 # ----------------------------------------------------------------------------─
 
-def passes_basic_filters(mol) -> bool:
-    """
-    Hard filters applied BEFORE scoring.
-    FIX: minimum MW enforced -> trivial molecules (isobutane etc.) excluded.
-    """
+def passes_geometric_filter(mol) -> bool:
+    """SAFE Stage 1: Geometric hard filter (MW, heavy atoms)."""
     mw          = Descriptors.MolWt(mol)
     heavy_atoms = mol.GetNumHeavyAtoms()
-    logp        = Descriptors.MolLogP(mol)
-    tpsa        = rmd.CalcTPSA(mol)
-    rot         = rmd.CalcNumRotatableBonds(mol)
-    hbd         = Descriptors.NumHDonors(mol)
-    hba         = Descriptors.NumHAcceptors(mol)
+    return (CFG.MIN_MW <= mw <= CFG.MAX_MW and
+            heavy_atoms >= CFG.MIN_HEAVY_ATOMS)
 
-    return (
-        CFG.MIN_MW         <= mw          <= CFG.MAX_MW  and
-        heavy_atoms        >= CFG.MIN_HEAVY_ATOMS        and
-        logp               <= CFG.MAX_LOGP               and
-        hbd                <= CFG.MAX_HBD                and
-        hba                <= CFG.MAX_HBA                and
-        tpsa               <= CFG.MAX_TPSA               and
-        rot                <= CFG.MAX_ROT_BONDS
-    )
+
+def passes_pains_filter(mol) -> bool:
+    """SAFE Stage 2: PAINS substructure screen."""
+    return not _PAINS_CATALOG.HasMatch(mol)
+
+
+def passes_lipinski_veber(mol) -> bool:
+    """SAFE Stage 3: Lipinski/Veber oral bioavailability rules."""
+    logp = Descriptors.MolLogP(mol)
+    tpsa = rmd.CalcTPSA(mol)
+    hbd  = Descriptors.NumHDonors(mol)
+    hba  = Descriptors.NumHAcceptors(mol)
+    rot  = rmd.CalcNumRotatableBonds(mol)
+    return (logp <= CFG.MAX_LOGP and
+            hbd  <= CFG.MAX_HBD  and
+            hba  <= CFG.MAX_HBA  and
+            tpsa <= CFG.MAX_TPSA and
+            rot  <= CFG.MAX_ROT_BONDS)
+
+
+def passes_basic_filters(mol) -> bool:
+    """Combined hard filter: geometric + PAINS + Lipinski/Veber."""
+    return (passes_geometric_filter(mol) and
+            passes_pains_filter(mol) and
+            passes_lipinski_veber(mol))
 
 
 # ----------------------------------------------------------------------------─
@@ -179,12 +191,12 @@ def scaffold_diversity(mols: list) -> float:
 
 
 # ----------------------------------------------------------------------------─
-# Full evaluation pipeline
+# Full evaluation pipeline (with attrition tracking)
 # ----------------------------------------------------------------------------─
 
 def evaluate(
-    smiles_list: list[str],
-    train_smiles: list[str],
+    smiles_list: list,
+    train_smiles: list,
     label: str = "model",
     save_csv: bool = True,
 ) -> dict:
@@ -198,7 +210,7 @@ def evaluate(
         save_csv     : whether to save per-molecule CSV
 
     Returns:
-        summary dict with all metrics
+        dict with keys: "summary", "df", "attrition"
     """
     print(f"\n[Evaluator] Evaluating {len(smiles_list):,} candidates (label={label}) ...")
 
@@ -211,19 +223,43 @@ def evaluate(
         if mol:
             train_fps.append(morgan_fp(mol))
 
-    # -- Parse + filter ----------------------------------------------------
+    # -- Attrition counters -----------------------------------------------
+    n_generated      = len(smiles_list)
+    n_rdkit_valid    = 0   # pass RDKit parse
+    n_geometric      = 0   # pass Stage 1: geometric (MW, heavy atoms)
+    n_pains          = 0   # pass Stage 2: PAINS screen
+    n_lipinski_veber = 0   # pass Stage 3: Lipinski/Veber
+    n_unique         = 0   # after deduplication
+
+    # -- Parse + filter (staged) ------------------------------------------
     rows = []
     valid_mols = []
+    seen_smiles = set()
 
     for smi in tqdm(smiles_list, desc="evaluating"):
         mol = Chem.MolFromSmiles(smi)
         if mol is None:
-            continue                          # invalid SMILES
+            continue
+        n_rdkit_valid += 1
 
-        if not passes_basic_filters(mol):
-            continue                          # fails MW/atom/ADMET pre-filters
+        # Stage 1: Geometric filter
+        if not passes_geometric_filter(mol):
+            continue
+        n_geometric += 1
+
+        # Stage 2: PAINS screen
+        pains_pass = passes_pains_filter(mol)
+        if not pains_pass:
+            continue
+        n_pains += 1
+
+        # Stage 3: Lipinski/Veber
+        if not passes_lipinski_veber(mol):
+            continue
+        n_lipinski_veber += 1
 
         # Compute all properties
+        canonical = Chem.MolToSmiles(mol)
         mw     = round(Descriptors.MolWt(mol), 2)
         logp   = round(Descriptors.MolLogP(mol), 2)
         tpsa   = round(rmd.CalcTPSA(mol), 2)
@@ -240,7 +276,7 @@ def evaluate(
 
         valid_mols.append(mol)
         rows.append({
-            "SMILES"       : smi,
+            "SMILES"       : canonical,
             "MolWeight"    : mw,
             "LogP"         : logp,
             "TPSA"         : tpsa,
@@ -255,31 +291,56 @@ def evaluate(
             "FinalScore"   : final,
             "IsNovel"      : novel,
             "IsDrugLike"   : lip >= 0.75,
-            "PassesPAINS"  : not _PAINS_CATALOG.HasMatch(mol),
+            "PassesPAINS"  : True,  # all molecules here have passed PAINS
         })
 
     df = pd.DataFrame(rows).drop_duplicates("SMILES").sort_values(
         "FinalScore", ascending=False
     ).reset_index(drop=True)
+    n_unique = len(df)
+
+    # -- Attrition report --------------------------------------------------
+    attrition = {
+        "stage_0_generated"      : n_generated,
+        "stage_1_rdkit_valid"    : n_rdkit_valid,
+        "stage_2_geometric"      : n_geometric,
+        "stage_3_pains"          : n_pains,
+        "stage_4_lipinski_veber" : n_lipinski_veber,
+        "stage_5_unique_final"   : n_unique,
+        # Pass rates
+        "pct_rdkit_valid"        : round(n_rdkit_valid / n_generated * 100, 1) if n_generated else 0,
+        "pct_geometric"          : round(n_geometric / max(n_rdkit_valid, 1) * 100, 1),
+        "pct_pains"              : round(n_pains / max(n_geometric, 1) * 100, 1),
+        "pct_lipinski_veber"     : round(n_lipinski_veber / max(n_pains, 1) * 100, 1),
+        "pct_overall_retained"   : round(n_unique / n_generated * 100, 1) if n_generated else 0,
+    }
+
+    print("\n-- SAFE Attrition Report ----------------------------")
+    print(f"   Stage 0 (Generated raw)       : {n_generated:,}")
+    print(f"   Stage 1 (RDKit valid)          : {n_rdkit_valid:,}  ({attrition['pct_rdkit_valid']:.1f}%)")
+    print(f"   Stage 2 (Geometric filter)     : {n_geometric:,}  ({attrition['pct_geometric']:.1f}% of valid)")
+    print(f"   Stage 3 (PAINS screen)         : {n_pains:,}  ({attrition['pct_pains']:.1f}% of geometric)")
+    print(f"   Stage 4 (Lipinski/Veber)       : {n_lipinski_veber:,}  ({attrition['pct_lipinski_veber']:.1f}% of PAINS-clean)")
+    print(f"   Stage 5 (Unique final)         : {n_unique:,}  ({attrition['pct_overall_retained']:.1f}% of raw)")
+    print("-----------------------------------------------------")
 
     # -- Summary metrics --------------------------------------------------─
-    n_gen      = len(smiles_list)
-    n_valid    = len(rows)             # after RDKit parse (invalids dropped)
-    n_filtered = len(df)              # after uniqueness + filter
-    validity   = round(n_valid / n_gen, 4)        if n_gen    else 0
-    uniqueness = round(len(df["SMILES"].unique()) / n_valid, 4) if n_valid else 0
-    novelty    = round(df["IsNovel"].mean(), 4)   if len(df)  else 0
-    drug_like  = round(df["IsDrugLike"].mean(), 4)if len(df)  else 0
-    avg_qed    = round(df["QED"].mean(), 4)        if len(df)  else 0
-    avg_tox    = round(df["Toxicity"].mean(), 4)   if len(df)  else 0
-    avg_final  = round(df["FinalScore"].mean(), 4) if len(df)  else 0
-    pains_ok   = round(df["PassesPAINS"].mean(), 4)if len(df)  else 0
+    n_valid    = n_rdkit_valid
+    n_filtered = n_unique
+    validity   = round(n_valid / n_generated, 4)       if n_generated else 0
+    uniqueness = round(n_unique / max(n_lipinski_veber, 1), 4)
+    novelty    = round(df["IsNovel"].mean(), 4)    if len(df) else 0
+    drug_like  = round(df["IsDrugLike"].mean(), 4) if len(df) else 0
+    avg_qed    = round(df["QED"].mean(), 4)         if len(df) else 0
+    avg_tox    = round(df["Toxicity"].mean(), 4)    if len(df) else 0
+    avg_final  = round(df["FinalScore"].mean(), 4)  if len(df) else 0
+    pains_ok   = round(df["PassesPAINS"].mean(), 4) if len(df) else 0
     int_div    = internal_diversity(valid_mols)
     scaf_div   = scaffold_diversity(valid_mols)
 
     summary = {
         "label"            : label,
-        "n_generated"      : n_gen,
+        "n_generated"      : n_generated,
         "n_valid"          : n_valid,
         "validity_%"       : f"{validity*100:.1f}",
         "uniqueness_%"     : f"{uniqueness*100:.1f}",
@@ -303,19 +364,23 @@ def evaluate(
         df.to_csv(out_path, index=False)
         print(f"[Evaluator] Per-molecule results -> {out_path}")
 
-    # Save summary
+    # Save summary + attrition
     summ_path = os.path.join(CFG.RESULTS_DIR, f"summary_{label}.json")
     with open(summ_path, "w") as f:
-        json.dump(summary, f, indent=2)
+        json.dump({"summary": summary, "attrition": attrition}, f, indent=2)
 
-    return {"summary": summary, "df": df}
+    attr_path = os.path.join(CFG.RESULTS_DIR, f"attrition_{label}.json")
+    with open(attr_path, "w") as f:
+        json.dump(attrition, f, indent=2)
+
+    return {"summary": summary, "df": df, "attrition": attrition}
 
 
 # ----------------------------------------------------------------------------─
 # MOSES-style benchmark table
 # ----------------------------------------------------------------------------─
 
-def build_benchmark_table(results: list[dict]) -> pd.DataFrame:
+def build_benchmark_table(results: list) -> pd.DataFrame:
     """
     Combine multiple evaluation summaries into a single comparison table
     (e.g. model at different temperatures vs. random baseline).
@@ -323,3 +388,39 @@ def build_benchmark_table(results: list[dict]) -> pd.DataFrame:
     rows = [r["summary"] for r in results]
     df = pd.DataFrame(rows).set_index("label")
     return df
+
+
+# ----------------------------------------------------------------------------─
+# Multi-seed aggregation utility
+# ----------------------------------------------------------------------------─
+
+def aggregate_seed_results(seed_results: list) -> dict:
+    """
+    Given a list of summary dicts from multiple seeds, compute mean ± std
+    for each numeric metric. Returns a dict ready for paper table.
+
+    Args:
+        seed_results: list of summary dicts (one per seed)
+    Returns:
+        dict with keys like "novelty_%_mean", "novelty_%_std", etc.
+    """
+    numeric_keys = [
+        "avg_QED", "avg_toxicity", "avg_final_score",
+        "internal_diversity", "scaffold_diversity"
+    ]
+    pct_keys = [
+        "uniqueness_%", "novelty_%", "drug_like_%", "pains_clean_%"
+    ]
+
+    agg = {}
+    for k in numeric_keys:
+        vals = [float(r[k]) for r in seed_results if k in r]
+        agg[f"{k}_mean"] = round(float(np.mean(vals)), 4)
+        agg[f"{k}_std"]  = round(float(np.std(vals)), 4)
+
+    for k in pct_keys:
+        vals = [float(r[k]) for r in seed_results if k in r]
+        agg[f"{k}_mean"] = round(float(np.mean(vals)), 2)
+        agg[f"{k}_std"]  = round(float(np.std(vals)), 2)
+
+    return agg

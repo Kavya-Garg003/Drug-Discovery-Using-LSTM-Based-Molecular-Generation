@@ -131,11 +131,17 @@ def generate_sweep(
     pad_idx: int,
     temperatures: list  = CFG.TEMPERATURES,
     n_per_temp: int     = CFG.N_GENERATE,
-) -> dict[float, list[str]]:
+    seed: int           = CFG.SEED,
+) -> dict:
     """
     Generate SMILES at each temperature in `temperatures`.
     Returns dict: temp -> list of canonical SMILES.
+
+    Args:
+        seed: numpy random seed for this generation run.
+              The model weights are fixed; only sampling stochasticity varies.
     """
+    np.random.seed(seed)
     results = {}
     for temp in temperatures:
         sels   = generate_selfies(
@@ -145,7 +151,7 @@ def generate_sweep(
         )
         smiles = selfies_to_smiles_list(sels)
         results[temp] = smiles
-        print(f"  T={temp}: {len(sels)} SELFIES -> {len(smiles)} SMILES decoded")
+        print(f"  T={temp} (seed={seed}): {len(sels)} SELFIES -> {len(smiles)} SMILES decoded")
 
         out = os.path.join(CFG.RESULTS_DIR, f"generated_T{temp}.txt")
         with open(out, "w") as f:

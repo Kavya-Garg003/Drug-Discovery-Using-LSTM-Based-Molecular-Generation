@@ -378,10 +378,10 @@ def generate_all_figures(
     history_csv: str,
     df_model: pd.DataFrame,
     df_baseline: pd.DataFrame,
-    summaries_by_temp: list[dict],
+    summaries_by_temp: list,
     model_summary: dict,
     baseline_summary: dict,
-    train_smiles: list[str],
+    train_smiles: list,
 ):
     print("\n[Visualizer] Generating all figures ...")
 
@@ -396,3 +396,15 @@ def generate_all_figures(
     plot_novelty_tanimoto(df_model["SMILES"].tolist(), train_smiles)
 
     print(f"\n[Visualizer] All figures saved to -> {CFG.FIGURES_DIR}")
+
+
+# ----------------------------------------------------------------------------─
+# Attrition figure (called separately with avg_attrition dict)
+# ----------------------------------------------------------------------------─
+
+def generate_attrition_figure(avg_attrition: dict, save_path: str = None):
+    """Delegate to dedicated attrition_figure module."""
+    import sys
+    sys.path.insert(0, os.path.dirname(__file__))
+    from attrition_figure import generate_attrition_figure as _gen
+    return _gen(avg_attrition, save_path)
