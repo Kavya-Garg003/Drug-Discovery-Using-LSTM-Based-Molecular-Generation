@@ -150,7 +150,7 @@ Every generated molecule passes five deterministic filters applied in strict seq
 \end{equation}
 The conformational strain energy $\Delta E_{\text{strain}} = E(\mathbf{x}_{\text{initial}}) - E(\mathbf{x}_{\text{min}})$ is evaluated, purging structures with severe steric clash ($\Delta E_{\text{strain}} > 35.0$~kcal/mol).
 
-\subsection{Information Manifold & Entropy Formulations}
+\subsection{Information Manifold \& Entropy Formulations}
 
 1) \textit{5D Joint Property Manifold Wasserstein Distance ($WD_{\text{5D}}$):} The divergence between generated candidates $\mathcal{P}_{\text{gen}}$ and the ZINC250K reference manifold $\mathcal{P}_{\text{ref}}$ across five normalized descriptors $\mathbf{v} = (\text{MW}, \text{LogP}, \text{TPSA}, \text{QED}, \text{SAScore})$ is formulated as:
 \begin{equation}
@@ -240,9 +240,9 @@ The model trained for 30 epochs without triggering early stopping, reaching a be
 \label{fig:loss}
 \end{figure}
 
-\subsection{SAFE+ Per-Stage Attrition & Synthetizability Screening}
+\subsection{SAFE+ Per-Stage Attrition \& Synthetizability Screening}
 
-Table~\ref{tab:attrition} reports the comprehensive SAFE+ attrition profile at $T{=}0.5$. Of 999 raw generated strings: 999 (100.0\%) produce valid RDKit molecules from SELFIES decoding. Of those valid molecules, 41.7\% survive geometric filtering, 96.4\% of those pass PAINS screening, and 91.8\% of PAINS-clean molecules satisfy Lipinski/Veber rules (yielding 369 molecules). Crucially, when subjected to Stage 4 Synthetizability & Structural Strain screening (SA Score $\le 4.5$, cumulene/allene exclusion, strained ring alkyne screening), 44.4\% of the Lipinski-clean candidates are eliminated due to synthetic complexity or ring strain liabilities, leaving 205 structurally sound molecules (199 unique candidates, 19.9\% of raw generation).
+Table~\ref{tab:attrition} reports the comprehensive SAFE+ attrition profile at $T{=}0.5$. Of 999 raw generated strings: 999 (100.0\%) produce valid RDKit molecules from SELFIES decoding. Of those valid molecules, 41.7\% survive geometric filtering, 96.4\% of those pass PAINS screening, and 91.8\% of PAINS-clean molecules satisfy Lipinski/Veber rules (yielding 369 molecules). Crucially, when subjected to Stage 4 Synthetizability \& Structural Strain screening (SA Score $\le 4.5$, cumulene/allene exclusion, strained ring alkyne screening), 44.4\% of the Lipinski-clean candidates are eliminated due to synthetic complexity or ring strain liabilities, leaving 205 structurally sound molecules (199 unique candidates, 19.9\% of raw generation).
 
 \begin{table}[!t]
 \centering
@@ -371,7 +371,7 @@ Fig.~\ref{fig:tanimoto} shows the Tanimoto similarity of each generated molecule
 \label{fig:tanimoto}
 \end{figure}
 
-\subsection{Preliminary Target-Specific Docking & Residue-Level SAR (EGFR)}
+\subsection{Preliminary Target-Specific Docking \& Residue-Level SAR (EGFR)}
 
 To evaluate whether SAFE+-retained candidates demonstrate spatial and electrostatic complementarity to defined biological targets, the top synthetically accessible, unstrained candidate molecule ($N$-(2-(2-(2-fluorophenyl)cyclopropyl)ethyl)acetamide; SMILES: \texttt{CC(=O)NCCC1CC1c1ccccc1F}, QED $= 0.831$, SA Score $= 2.87$, Toxicity $= 0.00$) was docked into the ATP-binding pocket of the EGFR kinase domain (PDB ID: 1M17, co-crystallised with AQ4) using AutoDock Vina \cite{ref16} within PyRx. The best pose yielded a predicted binding affinity of $-7.6$~kcal/mol.
 
@@ -388,9 +388,9 @@ To evaluate whether SAFE+-retained candidates demonstrate spatial and electrosta
 \section{Discussion}
 %% ─────────────────────────────────────────────
 
-\subsection{The 2D Filter Blindspot & Necessity of SAFE+ Stage 5}
+\subsection{The 2D Filter Blindspot \& Necessity of SAFE+ Stage 5}
 
-A fundamental empirical insight revealed by SAFE+ is that standard 2D drug-likeness rules (Lipinski Rule of 5, Veber criteria) suffer from a major blindspot: they fail to evaluate 3D structural strain, cumulene/allene double bonds, or synthetic accessibility. At high generation entropy ($T{=}1.0$), 93.9\% of generated molecules pass 2D Lipinski/Veber rules, yet **73.0\% of these molecules are synthetically implausible or severely strained**. By introducing SAFE+ Stage 5 (SA Score $\le 4.5$ and structural strain screening), our benchmark purges these artifacts completely, establishing that downstream 3D-aware synthesizability screening must accompany 2D ADMET filters in molecular generative benchmarks.
+A fundamental empirical insight revealed by SAFE+ is that standard 2D drug-likeness rules (Lipinski Rule of 5, Veber criteria) suffer from a major blindspot: they fail to evaluate 3D structural strain, cumulene/allene double bonds, or synthetic accessibility. At high generation entropy ($T{=}1.0$), 93.9\% of generated molecules pass 2D Lipinski/Veber rules, yet \textbf{73.0\% of these molecules are synthetically implausible or severely strained}. By introducing SAFE+ Stage 5 (SA Score $\le 4.5$ and structural strain screening), our benchmark purges these artifacts completely, establishing that downstream 3D-aware synthesizability screening must accompany 2D ADMET filters in molecular generative benchmarks.
 
 \subsection{The Novelty--QED Trade-off}
 
