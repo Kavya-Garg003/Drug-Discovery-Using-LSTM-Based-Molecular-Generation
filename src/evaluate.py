@@ -19,13 +19,13 @@ CRITICAL FIX vs original notebook:
   - Attrition tracking added per reviewer request
 """
 
-import os, json, warnings
+import os, sys, json, warnings
 import numpy as np
 import pandas as pd
 from rdkit import Chem, DataStructs
 from rdkit.Chem import (
     Descriptors, rdMolDescriptors, QED,
-    FilterCatalog, rdMolDescriptors as rmd,
+    FilterCatalog, rdMolDescriptors as rmd, RDConfig,
 )
 from rdkit.Chem.Scaffolds import MurckoScaffold
 from rdkit.Chem import AllChem
@@ -33,6 +33,15 @@ from tqdm import tqdm
 from config import CFG
 
 warnings.filterwarnings("ignore")
+
+# Import RDKit SA Score module
+sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
+try:
+    import sascorer
+except ImportError:
+    sascorer = None
+
+_CUMULENE_SMARTS = Chem.MolFromSmarts('[#6,#7,#8,#16]=[#6]=[#6,#7,#8,#16]')
 
 
 # ----------------------------------------------------------------------------─
@@ -133,11 +142,94 @@ def passes_lipinski_veber(mol) -> bool:
             rot  <= CFG.MAX_ROT_BONDS)
 
 
+def passes_strain_and_sa_filter(mol) -> bool:
+    """SAFE+ Stage 4: Structural Strain & Synthetic Accessibility (SA Score)."""
+    if not CFG.ALLOW_CUMULENES and _CUMULENE_SMARTS and mol.HasSubstructMatch(_CUMULENE_SMARTS):
+        return False
+
+    if not CFG.ALLOW_STRAINED_RING:
+        for bond in mol.GetBonds():
+            if bond.GetBondType() == Chem.BondType.TRIPLE and bond.IsInRing():
+                for ring in mol.GetRingInfo().AtomRings():
+                    if bond.GetBeginAtomIdx() in ring and bond.GetEndAtomIdx() in ring and len(ring) < 8:
+                        return False
+
+    if sascorer is not None:
+        try:
+            score = sascorer.calculateScore(mol)
+            if score > CFG.MAX_SA_SCORE:
+                return False
+        except Exception:
+            pass
+
+    return True
+
+
+from rdkit.Chem import AllChem, rdForceFieldHelpers
+from scipy.stats import wasserstein_distance
+
+
+def compute_mmff94_strain(mol) -> float:
+    """Computes 3D MMFF94 force field conformational strain energy (kcal/mol)."""
+    try:
+        m_h = Chem.AddHs(mol)
+        res = AllChem.EmbedMolecule(m_h, randomSeed=CFG.SEED, maxAttempts=10)
+        if res != 0:
+            return 999.0
+        props = rdForceFieldHelpers.MMFFGetMoleculeProperties(m_h)
+        if props is None:
+            return 999.0
+        ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(m_h, props)
+        if ff is None:
+            return 999.0
+        e_init = ff.CalcEnergy()
+        ff.Minimize(maxIts=200)
+        e_min = ff.CalcEnergy()
+        return round(float(e_init - e_min), 2)
+    except Exception:
+        return 999.0
+
+
+def compute_scaffold_shannon_entropy(mols: list) -> float:
+    """Calculates the Shannon Entropy H = -sum(p_i * log2(p_i)) of Bemis-Murcko scaffolds."""
+    from collections import Counter
+    scaffolds = []
+    for m in mols:
+        try:
+            sc = MurckoScaffold.GetScaffoldForMol(m)
+            scaffolds.append(Chem.MolToSmiles(sc))
+        except Exception:
+            pass
+    if not scaffolds:
+        return 0.0
+    counts = Counter(scaffolds)
+    total = len(scaffolds)
+    probs = [c / total for c in counts.values()]
+    entropy = -sum(p * np.log2(p) for p in probs)
+    return round(float(entropy), 4)
+
+
+def compute_5d_wasserstein(df_gen: pd.DataFrame, df_ref: pd.DataFrame) -> float:
+    """Calculates average Wasserstein-1 Distance across 5 normalized property distributions."""
+    cols = ["MolWeight", "LogP", "TPSA", "QED", "SAScore"]
+    dists = []
+    for col in cols:
+        if col in df_gen.columns and col in df_ref.columns:
+            min_val = min(df_gen[col].min(), df_ref[col].min())
+            max_val = max(df_gen[col].max(), df_ref[col].max())
+            rng = max(max_val - min_val, 1e-5)
+            v1 = (df_gen[col] - min_val) / rng
+            v2 = (df_ref[col] - min_val) / rng
+            dists.append(wasserstein_distance(v1, v2))
+    return round(float(np.mean(dists)), 4) if dists else 0.0
+
+
 def passes_basic_filters(mol) -> bool:
-    """Combined hard filter: geometric + PAINS + Lipinski/Veber."""
+    """Combined hard filter: SAFE+ (geometric + PAINS + Lipinski/Veber + Strain/SA)."""
     return (passes_geometric_filter(mol) and
             passes_pains_filter(mol) and
-            passes_lipinski_veber(mol))
+            passes_lipinski_veber(mol) and
+            passes_strain_and_sa_filter(mol))
 
 
 # ----------------------------------------------------------------------------─
@@ -229,6 +321,7 @@ def evaluate(
     n_geometric      = 0   # pass Stage 1: geometric (MW, heavy atoms)
     n_pains          = 0   # pass Stage 2: PAINS screen
     n_lipinski_veber = 0   # pass Stage 3: Lipinski/Veber
+    n_strain_sa      = 0   # pass Stage 4: Strain & SA Score (SAFE+)
     n_unique         = 0   # after deduplication
 
     # -- Parse + filter (staged) ------------------------------------------
@@ -258,6 +351,11 @@ def evaluate(
             continue
         n_lipinski_veber += 1
 
+        # Stage 4: Structural Strain & SA Score (SAFE+)
+        if not passes_strain_and_sa_filter(mol):
+            continue
+        n_strain_sa += 1
+
         # Compute all properties
         canonical = Chem.MolToSmiles(mol)
         mw     = round(Descriptors.MolWt(mol), 2)
@@ -271,8 +369,10 @@ def evaluate(
         qed_sc = round(QED.qed(mol), 4)
         lip    = lipinski_score(mol)
         tox    = admet_toxicity(mol)
+        sa_sc  = round(sascorer.calculateScore(mol), 2) if sascorer is not None else 3.0
         novel  = novelty_tanimoto(mol, train_fps) if train_fps else True
         final  = round((lip + qed_sc) / 2 - tox, 4)
+        mmff_e = compute_mmff94_strain(mol)
 
         valid_mols.append(mol)
         rows.append({
@@ -286,6 +386,8 @@ def evaluate(
             "AromaticRings": arom,
             "HeavyAtoms"   : ha,
             "QED"          : qed_sc,
+            "SAScore"      : sa_sc,
+            "MMFF_Strain"  : mmff_e,
             "DrugScore"    : lip,
             "Toxicity"     : tox,
             "FinalScore"   : final,
@@ -306,22 +408,25 @@ def evaluate(
         "stage_2_geometric"      : n_geometric,
         "stage_3_pains"          : n_pains,
         "stage_4_lipinski_veber" : n_lipinski_veber,
-        "stage_5_unique_final"   : n_unique,
+        "stage_5_strain_sa"      : n_strain_sa,
+        "stage_6_unique_final"   : n_unique,
         # Pass rates
         "pct_rdkit_valid"        : round(n_rdkit_valid / n_generated * 100, 1) if n_generated else 0,
         "pct_geometric"          : round(n_geometric / max(n_rdkit_valid, 1) * 100, 1),
         "pct_pains"              : round(n_pains / max(n_geometric, 1) * 100, 1),
         "pct_lipinski_veber"     : round(n_lipinski_veber / max(n_pains, 1) * 100, 1),
+        "pct_strain_sa"          : round(n_strain_sa / max(n_lipinski_veber, 1) * 100, 1),
         "pct_overall_retained"   : round(n_unique / n_generated * 100, 1) if n_generated else 0,
     }
 
-    print("\n-- SAFE Attrition Report ----------------------------")
+    print("\n-- SAFE+ Attrition Report ---------------------------")
     print(f"   Stage 0 (Generated raw)       : {n_generated:,}")
     print(f"   Stage 1 (RDKit valid)          : {n_rdkit_valid:,}  ({attrition['pct_rdkit_valid']:.1f}%)")
     print(f"   Stage 2 (Geometric filter)     : {n_geometric:,}  ({attrition['pct_geometric']:.1f}% of valid)")
     print(f"   Stage 3 (PAINS screen)         : {n_pains:,}  ({attrition['pct_pains']:.1f}% of geometric)")
     print(f"   Stage 4 (Lipinski/Veber)       : {n_lipinski_veber:,}  ({attrition['pct_lipinski_veber']:.1f}% of PAINS-clean)")
-    print(f"   Stage 5 (Unique final)         : {n_unique:,}  ({attrition['pct_overall_retained']:.1f}% of raw)")
+    print(f"   Stage 5 (Strain & SA Filter)   : {n_strain_sa:,}  ({attrition['pct_strain_sa']:.1f}% of Lipinski-clean)")
+    print(f"   Stage 6 (Unique final)         : {n_unique:,}  ({attrition['pct_overall_retained']:.1f}% of raw)")
     print("-----------------------------------------------------")
 
     # -- Summary metrics --------------------------------------------------─
@@ -337,6 +442,7 @@ def evaluate(
     pains_ok   = round(df["PassesPAINS"].mean(), 4) if len(df) else 0
     int_div    = internal_diversity(valid_mols)
     scaf_div   = scaffold_diversity(valid_mols)
+    scaf_ent   = compute_scaffold_shannon_entropy(valid_mols)
 
     summary = {
         "label"            : label,
@@ -352,6 +458,7 @@ def evaluate(
         "avg_final_score"  : avg_final,
         "internal_diversity": int_div,
         "scaffold_diversity": scaf_div,
+        "scaffold_entropy"  : scaf_ent,
     }
 
     print("\n-- Evaluation Summary ------------------------------")

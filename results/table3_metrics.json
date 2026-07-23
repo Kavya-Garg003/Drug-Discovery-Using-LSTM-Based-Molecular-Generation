@@ -1,0 +1,26 @@
+{
+  "0.2": {
+    "mean_mmff94_strain": 52.54,
+    "mean_sa_score": 3.418,
+    "wd_5d": 0.1933,
+    "scaffold_entropy_bits": 6.081
+  },
+  "0.5": {
+    "mean_mmff94_strain": 50.43,
+    "mean_sa_score": 3.384,
+    "wd_5d": 0.177,
+    "scaffold_entropy_bits": 6.309
+  },
+  "0.7": {
+    "mean_mmff94_strain": 66.94,
+    "mean_sa_score": 3.462,
+    "wd_5d": 0.1553,
+    "scaffold_entropy_bits": 6.536
+  },
+  "1.0": {
+    "mean_mmff94_strain": 108.15,
+    "mean_sa_score": 3.597,
+    "wd_5d": 0.1628,
+    "scaffold_entropy_bits": 5.56
+  }
+}

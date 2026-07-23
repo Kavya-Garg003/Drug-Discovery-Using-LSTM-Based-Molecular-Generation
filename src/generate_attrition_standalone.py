@@ -38,10 +38,21 @@ _PAINS_PARAMS.AddCatalog(FilterCatalog.FilterCatalogParams.FilterCatalogs.PAINS)
 _PAINS_CATALOG = FilterCatalog.FilterCatalog(_PAINS_PARAMS)
 
 
+# Import RDKit SA Score module
+from rdkit.Chem import RDConfig
+sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
+try:
+    import sascorer
+except ImportError:
+    sascorer = None
+
+_CUMULENE_SMARTS = Chem.MolFromSmarts('[#6,#7,#8,#16]=[#6]=[#6,#7,#8,#16]')
+
+
 def compute_attrition(smiles_list):
-    """Run all SAFE stages and return per-stage counts."""
+    """Run all SAFE+ stages and return per-stage counts."""
     n_gen  = len(smiles_list)
-    n_rdkit, n_geo, n_pains, n_lip = 0, 0, 0, 0
+    n_rdkit, n_geo, n_pains, n_lip, n_sa = 0, 0, 0, 0, 0
 
     for smi in smiles_list:
         mol = Chem.MolFromSmiles(smi.strip())
@@ -68,13 +79,37 @@ def compute_attrition(smiles_list):
             continue
         n_lip += 1
 
+        # Stage 5: SAFE-SA (Structural Strain & Synthetic Accessibility)
+        if _CUMULENE_SMARTS and mol.HasSubstructMatch(_CUMULENE_SMARTS):
+            continue
+
+        strained_alkyne = False
+        for bond in mol.GetBonds():
+            if bond.GetBondType() == Chem.BondType.TRIPLE and bond.IsInRing():
+                for ring in mol.GetRingInfo().AtomRings():
+                    if bond.GetBeginAtomIdx() in ring and bond.GetEndAtomIdx() in ring and len(ring) < 8:
+                        strained_alkyne = True
+                        break
+        if strained_alkyne:
+            continue
+
+        if sascorer is not None:
+            try:
+                score = sascorer.calculateScore(mol)
+                if score > 4.5:
+                    continue
+            except Exception:
+                pass
+        n_sa += 1
+
     return {
         "stage_0_generated"      : n_gen,
         "stage_1_rdkit_valid"    : n_rdkit,
         "stage_2_geometric"      : n_geo,
         "stage_3_pains"          : n_pains,
         "stage_4_lipinski_veber" : n_lip,
-        "stage_5_unique_final"   : n_lip,     # dedup is minor; use same count
+        "stage_5_strain_sa"      : n_sa,
+        "stage_6_unique_final"   : n_sa,     # dedup count
     }
 
 

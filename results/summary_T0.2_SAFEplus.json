@@ -1,0 +1,32 @@
+{
+  "summary": {
+    "label": "T0.2_SAFEplus",
+    "n_generated": 996,
+    "n_valid": 996,
+    "validity_%": "100.0",
+    "uniqueness_%": "53.5",
+    "novelty_%": "100.0",
+    "drug_like_%": "100.0",
+    "pains_clean_%": "100.0",
+    "avg_QED": 0.5437,
+    "avg_toxicity": 0.1012,
+    "avg_final_score": 0.668,
+    "internal_diversity": 0.8338,
+    "scaffold_diversity": 0.5876
+  },
+  "attrition": {
+    "stage_0_generated": 996,
+    "stage_1_rdkit_valid": 996,
+    "stage_2_geometric": 356,
+    "stage_3_pains": 334,
+    "stage_4_lipinski_veber": 271,
+    "stage_5_strain_sa": 177,
+    "stage_6_unique_final": 145,
+    "pct_rdkit_valid": 100.0,
+    "pct_geometric": 35.7,
+    "pct_pains": 93.8,
+    "pct_lipinski_veber": 81.1,
+    "pct_strain_sa": 65.3,
+    "pct_overall_retained": 14.6
+  }
+}

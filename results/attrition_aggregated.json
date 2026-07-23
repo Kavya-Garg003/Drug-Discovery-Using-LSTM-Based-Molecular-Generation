@@ -5,7 +5,8 @@
     "stage_2_geometric": 351,
     "stage_3_pains": 329,
     "stage_4_lipinski_veber": 271,
-    "stage_5_unique_final": 271
+    "stage_5_strain_sa": 177,
+    "stage_6_unique_final": 177
   },
   "0.5": {
     "stage_0_generated": 999,
@@ -13,7 +14,8 @@
     "stage_2_geometric": 415,
     "stage_3_pains": 400,
     "stage_4_lipinski_veber": 369,
-    "stage_5_unique_final": 369
+    "stage_5_strain_sa": 205,
+    "stage_6_unique_final": 205
   },
   "0.7": {
     "stage_0_generated": 997,
@@ -21,7 +23,8 @@
     "stage_2_geometric": 412,
     "stage_3_pains": 396,
     "stage_4_lipinski_veber": 368,
-    "stage_5_unique_final": 368
+    "stage_5_strain_sa": 175,
+    "stage_6_unique_final": 175
   },
   "1.0": {
     "stage_0_generated": 995,
@@ -29,6 +32,7 @@
     "stage_2_geometric": 408,
     "stage_3_pains": 382,
     "stage_4_lipinski_veber": 370,
-    "stage_5_unique_final": 370
+    "stage_5_strain_sa": 100,
+    "stage_6_unique_final": 100
   }
 }

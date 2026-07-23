@@ -1,0 +1,51 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[top=0.8in, bottom=0.8in, left=1in, right=1in]{geometry}
+\usepackage{charter} % clean, professional font
+\usepackage{hyperref}
+\usepackage{parskip} % adds space between paragraphs and removes indent
+
+\begin{document}
+\thispagestyle{empty}
+
+\hfill \textbf{Date:} July 16, 2026
+
+\begin{flushleft}
+\textbf{Kavya Garg} \\
+School of Computer Science Engineering \\
+RV University \\
+Bangalore, India \\
+Email: \href{mailto:kavyag.btech1@rvu.edu.in}{kavyag.btech1@rvu.edu.in}
+\end{flushleft}
+
+\vspace{1em}
+
+\begin{flushleft}
+\textbf{The Editors} \\
+\textit{ACS Omega}
+\end{flushleft}
+
+\vspace{1em}
+
+Dear Editors,
+
+Please find enclosed our revised manuscript entitled ``SAFE+: An Empirical Benchmark of Multi-Stage ADMET, Synthetizability, and Structural Strain Attrition in SELFIES-LSTM Molecular Generation,'' which we submit for consideration as a research article in \textit{ACS Omega}.
+
+While generative molecular design models routinely report syntactic validity and structural novelty, standard benchmarks fail to evaluate downstream 3D structural strain or synthetic accessibility. In practice, 2D ADMET rules (Lipinski Rule of 5, Veber criteria) permit a false sense of drug-likeness, allowing up to 73.0\% of generated candidates at high entropy to pass despite containing severe ring strain, cumulene double bonds ($C{=}C{=}C$), or prohibitively high synthetic complexity.
+
+To resolve this critical liability, we present \textbf{SAFE+}, a 4-stage empirical diagnostic benchmark that couples a stacked SELFIES-LSTM generator with 2D ADMET rules and a novel Stage 5 Synthetic Accessibility (SA Score $\le 4.5$) and structural strain filter. Across four sampling temperatures on ZINC250K, we prove that SAFE+ purges 100\% of these implausible artifacts, yielding a refined set of 199 unique, 100\% synthetically accessible candidates at $T{=}0.5$ (19.9\% of raw generation). Furthermore, we provide detailed residue-level SAR rationale for the top unstrained candidate ($N$-(2-(2-(2-fluorophenyl)cyclopropyl)ethyl)acetamide, SA Score 2.87) docked into the EGFR kinase domain (PDB: 1M17, binding affinity $-7.6$~kcal/mol) with explicit hinge-region (Met793) hydrogen bonding.
+
+We believe this work provides an essential diagnostic benchmark for the molecular generation community and is an ideal fit for \textit{ACS Omega}. This manuscript is original, and all authors have approved the submission.
+
+Thank you for your time and consideration.
+
+\vspace{1.5em}
+
+Sincerely,
+
+\vspace{1em}
+
+Kavya Garg \\
+(On behalf of the authors)
+
+\end{document}

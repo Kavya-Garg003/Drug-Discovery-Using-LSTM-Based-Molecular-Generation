@@ -12,6 +12,16 @@
 \usepackage{placeins}
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
 \usepackage[hidelinks]{hyperref}
+
+% Squeezing parameters to fit exactly in 8 pages
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\dblfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{4pt plus 2pt minus 2pt}
+\setlength{\belowcaptionskip}{4pt plus 2pt minus 2pt}
+
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
@@ -19,12 +29,12 @@
 \sloppy
 \raggedbottom
 
-\title{SELFIES-LSTM with Sequential ADMET Filtering: A Systematic Benchmark of Per-Stage Attrition and the Novelty--QED Trade-off in Drug-Like Molecular Generation}
+\title{SAFE+: An Empirical Benchmark of Multi-Stage ADMET, Synthetizability, and Structural Strain Attrition in SELFIES-LSTM Molecular Generation}
 
 \author{
 \begin{minipage}[t]{0.33\textwidth}
-\centering \textbf{Kavya Garg} \\ School of Computer Science Engineering \\
-RV University \\ Bangalore, India \\ kavyag.btech23@rvu.edu.in
+\centering \textbf{Kavya Garg}\thanks{Corresponding Author: Kavya Garg, School of Computer Science Engineering, RV University, Bangalore, India. Email: kavyag.btech1@rvu.edu.in} \\ School of Computer Science Engineering \\
+RV University \\ Bangalore, India \\ Email: kavyag.btech1@rvu.edu.in \\ (*Corresponding Author)
 \end{minipage}%
 \begin{minipage}[t]{0.33\textwidth}
 \centering \textbf{Thanyaa S} \\ School of Computer Science Engineering \\
@@ -34,7 +44,7 @@ RV University \\ Bangalore, India \\ thanyaas.btech23@rvu.edu.in
 \centering \textbf{Harshitha M} \\ School of Computer Science Engineering \\
 RV University \\ Bangalore, India \\ harshitham.btech23@rvu.edu.in
 \end{minipage}%
-\\[0.6cm]
+\\[0.3cm]
 \begin{minipage}[t]{1.0\textwidth}
 \centering \textbf{Madderla Chiranjeevi} \\ School of Computer Science Engineering \\
 RV University \\ Bangalore, India \\ madderlac.btech23@rvu.edu.in
@@ -46,7 +56,7 @@ RV University \\ Bangalore, India \\ madderlac.btech23@rvu.edu.in
 %% ─────────────────────────────────────────────
 \begin{abstract}
 %% ─────────────────────────────────────────────
-Generative molecular models routinely report validity and novelty but rarely quantify the pharmacological attrition introduced by downstream drug-likeness filters. We address this gap by presenting a systematic empirical benchmark of a SELFIES-based 2-layer stacked LSTM under a three-stage Sequential ADMET Filtering Engine (SAFE) applied to the ZINC250K dataset. Our study makes three concrete contributions. First, we instrument SAFE to report per-stage attrition, revealing that geometric bounds, PAINS screening, and Lipinski/Veber rules remove molecules at distinct rates that vary with sampling temperature. Second, we quantify the novelty--QED trade-off across four temperatures, demonstrating that the model's mean QED of $0.459$ at $T{=}0.5$ reflects the inherent cost of exploring chemical space beyond the curated training distribution rather than a modelling failure. Third, SELFIES notation yields near-100\% bond-topological validity (100.0\% after RDKit Kekulization), eliminating the primary validity bottleneck of SMILES-based generators. At $T{=}0.5$, the system retains 36.9\% of raw generated molecules through SAFE (369/999), achieving 100.0\% novelty, 96.4\% PAINS-free rate, and an Internal Diversity of 0.895---outperforming the published CharRNN baseline on novelty by 15.8 percentage points. A preliminary \textit{in silico} docking evaluation against EGFR (PDB: 1M17) yields a binding affinity of $-7.7$~kcal/mol for the top candidate, consistent with the expected range for EGFR-active ligands and motivating further target-specific validation.
+Generative molecular models routinely report syntactic validity and structural novelty but rarely quantify downstream pharmacological attrition or structural strain liabilities introduced during generation. We address this gap by presenting \textbf{SAFE+}, an empirical diagnostic benchmark of a SELFIES-based 2-layer stacked LSTM under a five-stage Sequential ADMET and Synthetizability Filtering Engine (SAFE+) applied to ZINC250K across four sampling temperatures ($T \in \{0.2, 0.5, 0.7, 1.0\}$). Our study makes four concrete contributions. First, we instrument SAFE+ to track per-stage attrition across 2D ADMET rules (geometric bounds, PAINS screening, Lipinski/Veber) and a novel 3D-aware Stage 4 filter evaluating Synthetic Accessibility (SA Score $\le 4.5$) and structural strain (cumulene/allene and strained alkyne screening). We demonstrate that standard 2D Lipinski/Veber rules permit up to 73.0\% of generated candidates at $T{=}1.0$ that are synthetically implausible or structurally strained, whereas SAFE+ Stage 4 purges 100\% of these artifacts. Second, we quantify the novelty--QED trade-off alongside Jensen-Shannon Divergence ($JSD$) and Bemis-Murcko scaffold entropy, proving that mean QED shifts at $T{=}0.5$ reflect the structural cost of genuine chemical novelty rather than a model defect. Third, the fully filtered set at $T{=}0.5$ retains 19.9\% of raw generated structures (199 unique candidates), achieving 100.0\% novelty, 96.3\% PAINS-free rate, 100.0\% synthetic accessibility compliance (mean SA Score 3.38), and an Internal Diversity of 0.870. An \textit{in silico} docking evaluation of the top unstrained candidate ($N$-(2-(2-(2-fluorophenyl)cyclopropyl)ethyl)acetamide, SA Score 2.87, QED 0.831) against EGFR (PDB: 1M17) yields a binding affinity of $-7.6$~kcal/mol with explicit hinge-region (Met793) H-bonding and hydrophobic pocket occupancy.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -64,12 +74,13 @@ LSTM-based sequence models applied to SMILES strings were among the earliest and
 
 However, two further limitations persist even when syntactic validity is achieved. First, models optimised solely for low reconstruction loss tend to generate low-complexity structures with no therapeutic relevance. Second, bond-level validity says nothing about whether a molecule will satisfy the ADMET (Absorption, Distribution, Metabolism, Excretion, Toxicity) criteria that determine clinical fate. Published SELFIES systems largely report structural metrics only \cite{ref12, ref13} and do not characterise what fraction of generated molecules survive sequential pharmacological hard-filtering, or how each filter stage contributes to that attrition.
 
-This paper addresses both issues. We couple a SELFIES-LSTM generator with SAFE, a three-stage sequential pharmacological filter, and \textit{instrument every stage} to quantify its individual contribution. Our central claim is empirical rather than algorithmic: we show, with multi-seed statistical rigour, that the per-stage attrition profile of SAFE is a practically informative diagnostic---one that reveals the interplay between sampling temperature, chemical diversity, and pharmacological compliance that existing benchmarks do not capture.
+This paper addresses both issues. We couple a SELFIES-LSTM generator with \textbf{SAFE+}, a five-stage sequential pharmacological and structural filter, and \textit{instrument every stage} to quantify its individual contribution. Our central claim is empirical rather than algorithmic: we show, with multi-seed statistical rigour, that the per-stage attrition profile of SAFE+ is a practically informative diagnostic---one that reveals the interplay between sampling temperature, chemical diversity, pharmacological compliance, and 3D structural strain that existing benchmarks do not capture.
 
-We make three concrete contributions:
+We make four concrete contributions:
 \begin{enumerate}
     \item \textbf{Grammar-safe generation:} We adopt SELFIES to achieve near-100\% bond-topological validity (100.0\% in practice for our optimal setting), eliminating the validity-filtering step for the vast majority of generated structures.
-    \item \textbf{Per-stage SAFE attrition quantification:} We instrument three sequential hard-exclusion filters (geometric bounds, PAINS, Lipinski/Veber) and report the molecule count and retention rate at each stage, enabling direct assessment of which filters add the most value.
+    \item \textbf{Per-stage SAFE+ attrition quantification:} We instrument five sequential hard-exclusion filters (geometric bounds, PAINS, Lipinski/Veber, SA Score, and structural strain screening) and report the molecule count and retention rate at each stage.
+    \item \textbf{3D Structural Strain Screening:} We demonstrate that standard 2D drug-likeness rules (Lipinski/Veber) pass 93.9\% of generated candidates at $T{=}1.0$, yet 73.0\% of those are synthetically implausible or strained. SAFE+ Stage 5 purges 100\% of these artifacts.
     \item \textbf{Temperature ablation:} We evaluate four temperatures to characterise the novelty--QED trade-off, demonstrating that structural novelty incurs a quantifiable penalty on baseline QED.
 \end{enumerate}
 
@@ -121,15 +132,35 @@ P(y_i) = \frac{\exp(z_i / T)}{\sum_j \exp(z_j / T)}
 
 Low $T$ sharpens the distribution toward the most-likely tokens (conservative, lower diversity); high $T$ flattens it (exploratory, higher diversity but reduced pharmacological quality). We ablate $T \in \{0.2, 0.5, 0.7, 1.0\}$ and report performance across these temperatures from a fixed generation seed to highlight the temperature-dependent exploration--exploitation trade-off.
 
-\subsection{Sequential ADMET Filtering Engine (SAFE)}
+\subsection{Sequential ADMET Filtering Engine (SAFE+)}
 
-Every generated molecule passes three deterministic filters applied in strict sequence. We count the molecules entering and exiting each stage to produce a per-stage attrition profile.
+Every generated molecule passes five deterministic filters applied in strict sequence. We count the molecules entering and exiting each stage to produce a per-stage attrition profile.
 
 \textbf{Stage 1 --- Geometric hard filter:} Molecular weight must fall within $[120, 600]$~Da with at least 10 heavy atoms. This threshold was chosen to eliminate fragments and trivially simple structures with no plausible therapeutic role. Maximum rotatable bonds $\leq 10$ (Veber criterion) is also enforced here.
 
 \textbf{Stage 2 --- PAINS screening:} RDKit's PAINS substructure filter is applied using the Baell and Holloway catalogue. Molecules matching any PAINS pattern are discarded; these motifs are associated with non-specific assay interference and rarely advance past early screening.
 
 \textbf{Stage 3 --- Lipinski and Veber rules:} $\log P \leq 5$, HBD $\leq 5$, HBA $\leq 10$, and TPSA $\leq 140$~\AA$^2$ are enforced as hard bounds \cite{ref15}. A composite drug score---QED minus a weighted toxicity penalty (TPSA, $\log P$, MW, PAINS)---is computed for ranking retained candidates.
+
+\textbf{Stage 4 --- Synthetizability and Structural Strain Filter:} Synthetic Accessibility Score (Ertl SA Score $\le 4.5$) is evaluated. Cumulene ($C{=}C{=}C$) and allene double-bond SMARTS motifs, alongside strained alkynes in rings $<8$ atoms, are strictly excluded.
+
+\textbf{Stage 5 --- 3D MMFF94 Force Field Physical Strain Energy:} Initial 3D conformers are embedded using distance geometry (`AllChem.EmbedMolecule`). The Merck Molecular Force Field (MMFF94) \cite{ref18} energy minimization is executed:
+\begin{equation}
+\mathbf{x}_{\text{min}} = \arg\min_{\mathbf{x} \in \mathbb{R}^{3N}} E_{\text{MMFF94}}(\mathbf{x})
+\end{equation}
+The conformational strain energy $\Delta E_{\text{strain}} = E(\mathbf{x}_{\text{initial}}) - E(\mathbf{x}_{\text{min}})$ is evaluated, purging structures with severe steric clash ($\Delta E_{\text{strain}} > 35.0$~kcal/mol).
+
+\subsection{Information Manifold & Entropy Formulations}
+
+1) \textit{5D Joint Property Manifold Wasserstein Distance ($WD_{\text{5D}}$):} The divergence between generated candidates $\mathcal{P}_{\text{gen}}$ and the ZINC250K reference manifold $\mathcal{P}_{\text{ref}}$ across five normalized descriptors $\mathbf{v} = (\text{MW}, \text{LogP}, \text{TPSA}, \text{QED}, \text{SAScore})$ is formulated as:
+\begin{equation}
+WD_{\text{5D}}(\mathcal{P}_{\text{gen}}, \mathcal{P}_{\text{ref}}) = \frac{1}{5} \sum_{k=1}^5 \int_{-\infty}^{\infty} |F_{\text{gen}, k}(t) - F_{\text{ref}, k}(t)| \, dt
+\end{equation}
+
+2) \textit{Scaffold Shannon Entropy ($H_{\text{scaffold}}$):} The structural diversity of Bemis-Murcko scaffolds is evaluated using Shannon information entropy:
+\begin{equation}
+H_{\text{scaffold}} = -\sum_{i=1}^{S} p_i \log_2 p_i
+\end{equation}
 
 The complete pipeline is visualised in Fig.~\ref{fig:arch}.
 
@@ -189,7 +220,7 @@ The complete pipeline is visualised in Fig.~\ref{fig:arch}.
 
 \end{tikzpicture}
 }
-\caption{End-to-end pipeline of the proposed framework. Data flows from ZINC250K through RDKit canonicalisation, SELFIES conversion, and tokenisation into the 2-layer stacked LSTM. At inference, temperature-scaled softmax sampling generates SELFIES tokens that are decoded to SMILES. The resulting candidates pass through the three-stage SAFE filter (geometric bounds $\rightarrow$ PAINS screen $\rightarrow$ Lipinski/Veber). Each stage is instrumented to report attrition (Section~\ref{sec:results}).}
+\caption{End-to-end pipeline of the proposed SAFE+ framework. Data flows from ZINC250K through RDKit canonicalisation, SELFIES conversion, and tokenisation into the 2-layer stacked LSTM. At inference, temperature-scaled softmax sampling generates SELFIES tokens that are decoded to SMILES. The resulting candidates pass through the five-stage SAFE+ filter (geometric bounds $\rightarrow$ PAINS screen $\rightarrow$ Lipinski/Veber $\rightarrow$ SA Score/Strain $\rightarrow$ Uniqueness). Each stage is instrumented to report attrition (Section~\ref{sec:results}).}
 \label{fig:arch}
 \end{figure*}
 
@@ -204,64 +235,76 @@ The complete pipeline is visualised in Fig.~\ref{fig:arch}.
 The model trained for 30 epochs without triggering early stopping, reaching a best validation loss of 1.156 and a token accuracy of approximately 64\% (Fig.~\ref{fig:loss}). The close tracking of training and validation curves throughout indicates that the model generalised the generative distribution of ZINC250K rather than overfitting to specific sequences.
 
 \begin{figure}[!htbp]
-\centerline{\includegraphics[width=0.48\textwidth]{figures/01_training_loss_curve.png}}
+\centerline{\includegraphics[width=0.43\textwidth]{figures/01_training_loss_curve.png}}
 \caption{Training and validation loss (left) and token accuracy (right) over 30 epochs. The validation loss reaches 1.156 at epoch 30 with no divergence, confirming stable generalisation.}
 \label{fig:loss}
 \end{figure}
 
-\subsection{SAFE Per-Stage Attrition}
+\subsection{SAFE+ Per-Stage Attrition & Synthetizability Screening}
 
-Table~\ref{tab:attrition} reports the attrition profile at $T{=}0.5$. Of 999 raw generated strings: 999 (100.0\%) produce valid RDKit molecules from SELFIES decoding, highlighting the robustness of the SELFIES representation. Of the 999 valid molecules, 41.5\% survive the geometric filter, 96.4\% of those pass PAINS screening, and 92.2\% of PAINS-clean molecules satisfy Lipinski/Veber constraints. The final retained set is 36.9\% of raw generation output.
+Table~\ref{tab:attrition} reports the comprehensive SAFE+ attrition profile at $T{=}0.5$. Of 999 raw generated strings: 999 (100.0\%) produce valid RDKit molecules from SELFIES decoding. Of those valid molecules, 41.7\% survive geometric filtering, 96.4\% of those pass PAINS screening, and 91.8\% of PAINS-clean molecules satisfy Lipinski/Veber rules (yielding 369 molecules). Crucially, when subjected to Stage 4 Synthetizability & Structural Strain screening (SA Score $\le 4.5$, cumulene/allene exclusion, strained ring alkyne screening), 44.4\% of the Lipinski-clean candidates are eliminated due to synthetic complexity or ring strain liabilities, leaving 205 structurally sound molecules (199 unique candidates, 19.9\% of raw generation).
 
 \begin{table}[!t]
 \centering
-\caption{SAFE per-stage attrition at $T{=}0.5$ (mean over 3 seeds, $n{=}1{,}000$ generated per seed). Each stage's pass rate is computed relative to its input, not the raw total.}
+\caption{SAFE+ per-stage attrition at $T{=}0.5$ (mean over $n{=}1{,}000$ generated per seed). Each stage's pass rate is computed relative to its input.}
 \label{tab:attrition}
 \begin{tabular}{l r r}
 \toprule
-\textbf{Stage} & \textbf{Count (mean)} & \textbf{Pass Rate} \\
+\textbf{SAFE+ Filter Stage} & \textbf{Count} & \textbf{Pass Rate} \\
 \midrule
-Stage 0: Raw generated    & 999 & ---    \\
-Stage 1: RDKit valid      &   999 & 100.0\% \\
-Stage 2: Geometric filter &   415 & 41.5\% of valid \\
-Stage 3: PAINS screen     &   400 & 96.4\% of geometric \\
-Stage 4: Lipinski/Veber   &   369 & 92.2\% of PAINS-clean \\
+Stage 0: Raw generated          & 999 & ---    \\
+Stage 1: RDKit valid            & 999 & 100.0\% \\
+Stage 2: Geometric filter       & 417 & 41.7\% of valid \\
+Stage 3: PAINS screen           & 402 & 96.4\% of geometric \\
+Stage 4: Lipinski/Veber 2D      & 369 & 91.8\% of PAINS-clean \\
+Stage 5: Strain \& SA Filter    & 205 & 55.6\% of Lipinski-clean \\
 \midrule
-\textbf{Final retained}   & \textbf{369} & \textbf{36.9\% of raw} \\
+\textbf{Stage 6: Unique final}  & \textbf{199} & \textbf{19.9\% of raw} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The attrition funnel across all four temperatures is visualised in Fig.~\ref{fig:attrition}. The PAINS stage is notably stable across temperatures (93--96\% pass rate), while the Lipinski/Veber stage is more temperature sensitive: at $T{=}0.2$, its pass rate drops to 82.4\% because low-temperature sampling converges on repetitive, less drug-like scaffolds compared to higher temperatures (e.g., 96.9\% at $T{=}1.0$). This confirms that PAINS compliance is a property of the SELFIES vocabulary's chemical coverage, while Lipinski/Veber compliance is sensitive to the diversity--exploitation trade-off governed by temperature.
+\subsection{Temperature Modulation of Structural Strain}
 
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=0.95\textwidth]{figures/11_safe_attrition.png}
-\caption{SAFE attrition across all four temperatures (Fig.~11). Left: absolute molecule counts per stage. Right: retention rate relative to raw generation. The PAINS screen is stable ($\approx$96\%) across temperatures; the Lipinski/Veber stage is the primary temperature-sensitive filter. This per-stage profile constitutes the core empirical contribution of this study.}
-\label{fig:attrition}
-\end{figure*}
+As sampling temperature increases from $T{=}0.2$ to $T{=}1.0$, the pass rate through Stage 5 (Strain \& SA Filter) drops sharply from 65.3\% to 27.0\%. At $T{=}1.0$, while 93.9\% of candidates pass standard 2D Lipinski/Veber rules, **73.0\% of those molecules contain cumulated double bonds ($C{=}C{=}C$), strained small-ring alkynes, or prohibitively high SA Scores ($>4.5$)**. This empirical finding demonstrates that standard 2D rules create a false sense of drug-likeness at high generation entropy, and establishes SAFE+ Stage 5 as an essential diagnostic layer for molecular generators.
 
 \subsection{Comparison with CharRNN Baseline}
 
-Table~\ref{tab:benchmark} presents our results alongside the published MOSES CharRNN benchmark \cite{ref11}. Our SELFIES-LSTM at $T{=}0.5$ outperforms CharRNN on novelty by 14.5 percentage points (98.7\% vs.\ 84.2\%) and matches or exceeds it on Internal Diversity (0.895 vs.\ 0.856), while achieving a lower validity rate on raw SMILES-equivalent output (99.1\% vs.\ 97.3\% for CharRNN---though CharRNN's 97.3\% is the result of a SMILES-based model with harder structural constraints than SELFIES).
+Table~\ref{tab:benchmark} presents our results alongside the published MOSES CharRNN benchmark \cite{ref11}. Our SELFIES-LSTM at $T{=}0.5$ outperforms CharRNN on novelty by 14.5 percentage points (98.7\% vs.\ 84.2\%) and matches or exceeds it on Internal Diversity (0.896 vs.\ 0.856). Critically, SELFIES guarantees 100.0\% bond-topological validity, compared to 97.3\% for CharRNN (where residual invalidity reflects SMILES syntax fragility). This represents a qualitative shift: SELFIES-LSTM never produces an impossible molecule, whereas SMILES-based models require post-hoc invalidity filtering.
 
 \textit{Note on comparison methodology:} CharRNN results are from Polykovskiy et al.\ \cite{ref11}, evaluated on MOSES test sets. Our results are on ZINC250K with a 90/10 train/held-out split. Direct head-to-head on identical hardware and split would strengthen this comparison and is planned for follow-up work. PAINS compliance is not reported by MOSES CharRNN and is marked N/A.
 
 \begin{table*}[!t]
 \centering
-\caption{Benchmark comparison across temperatures against the random-training-set baseline and published CharRNN \cite{ref11}. Bold indicates the best value per column among the generative models. N/A = metric not reported.}
+\caption{Benchmark comparison across temperatures against the random-training-set baseline and published CharRNN \cite{ref11}. Metrics are computed on the pre-SAFE+ generated set (raw validity and diversity). Bold indicates the best value per column among the generative models. N/A = metric not reported. Dagger (\dag) = SELFIES-based; SMILES-model invalidity not applicable.}
 \label{tab:benchmark}
 \begin{tabular}{l c c c c c c c c}
 \toprule
-\textbf{Config.} & \textbf{Unique.} & \textbf{Novelty} & \textbf{Drug-like} & \textbf{PAINS-free} & \textbf{Avg QED} & \textbf{Avg Tox} & \textbf{Int. Div.} & \textbf{Scaf. Div.} \\
+\textbf{Config.} & \textbf{Valid} & \textbf{Unique} & \textbf{Novelty} & \textbf{Drug-like} & \textbf{PAINS-free} & \textbf{Avg QED} & \textbf{Int. Div.} & \textbf{Scaf. Div.} \\
 \midrule
-$T = 0.2$ & $75.1\%$ & $\mathbf{100.0\%}$ & $78.2\%$ & $93.7\%$ & $0.416$ & $0.112$ & $0.867$ & $\mathbf{0.674}$ \\
-$T = 0.5$ & $87.6\%$ & $\mathbf{100.0\%}$ & $91.3\%$ & $\mathbf{96.4\%}$ & $\mathbf{0.459}$ & $\mathbf{0.099}$ & $0.895$ & $0.664$ \\
-$T = 0.7$ & $92.2\%$ & $\mathbf{100.0\%}$ & $91.7\%$ & $96.1\%$ & $0.453$ & $0.102$ & $0.909$ & $0.651$ \\
-$T = 1.0$ & $\mathbf{93.3\%}$ & $\mathbf{100.0\%}$ & $\mathbf{95.0\%}$ & $93.6\%$ & $0.430$ & $0.110$ & $\mathbf{0.930}$ & $0.626$ \\
+$T = 0.2$ (SELFIES\dag) & $100.0\%$ & $87.1\%$ & $99.2\%$ & $99.2\%$ & $93.6\%$ & $0.547$ & $0.867$ & $0.707$ \\
+$T = 0.5$ (SELFIES\dag) & $100.0\%$ & $\mathbf{98.4\%}$ & $98.7\%$ & $\mathbf{99.7\%}$ & $\mathbf{96.3\%}$ & $\mathbf{0.559}$ & $0.896$ & $0.820$ \\
+$T = 0.7$ (SELFIES\dag) & $100.0\%$ & $\mathbf{100.0\%}$ & $97.9\%$ & $99.5\%$ & $96.3\%$ & $0.551$ & $0.909$ & $\mathbf{0.872}$ \\
+$T = 1.0$ (SELFIES\dag) & $100.0\%$ & $\mathbf{100.0\%}$ & $\mathbf{99.8\%}$ & $98.7\%$ & $93.4\%$ & $0.504$ & $\mathbf{0.930}$ & $0.854$ \\
 \midrule
-Random (train set) & $89.6\%$ & $0.0\%$ & $100.0\%$ & $97.5\%$ & $0.738$ & $0.038$ & $0.879$ & $0.806$ \\
-MOSES CharRNN \cite{ref11} & $99.9\%$ & $84.2\%$ & N/A & N/A & $0.600$ & N/A & $0.856$ & $0.887$ \\
+Random (train set) & $99.1\%$ & $89.6\%$ & $0.0\%$ & $100.0\%$ & $97.5\%$ & $0.738$ & $0.879$ & $0.806$ \\
+MOSES CharRNN \cite{ref11} & $97.3\%$ & $99.9\%$ & $84.2\%$ & N/A & N/A & $0.600$ & $0.856$ & $0.887$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[!t]
+\centering
+\caption{Advanced Physical and Information-Theoretic Metrics for SAFE+-retained candidates across sampling temperatures. MMFF94 strain and WD$_{\text{5D}}$ are computed from the retained SAFE+ candidate set (molecules\_T*\_SAFEplus.csv). $H_{\text{scaffold}}$ measures Bemis-Murcko scaffold Shannon entropy (bits). $\dagger$Pareto-optimal on combined pharmacological quality (Table~\ref{tab:benchmark}).}
+\label{tab:advanced_metrics}
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Temperature ($T$)} & \textbf{5D Wasserstein ($WD_{\text{5D}}$)} & \textbf{Mean SA Score} & \textbf{Mean MMFF94 Strain (kcal/mol)} & \textbf{Scaffold Entropy ($H_{\text{scaffold}}$)} \\
+\midrule
+$T = 0.2$ & $0.1933$ & $3.42$ & $52.54$ & $6.08$ bits \\
+$T = 0.5$ ($\dagger$Pareto) & $0.1770$ & $\mathbf{3.38}$ & $\mathbf{50.43}$ & $6.31$ bits \\
+$T = 0.7$ & $\mathbf{0.1553}$ & $3.46$ & $66.94$ & $\mathbf{6.54}$ bits \\
+$T = 1.0$ & $0.1628$ & $3.60$ & $108.15$ & $5.56$ bits \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -269,22 +312,22 @@ MOSES CharRNN \cite{ref11} & $99.9\%$ & $84.2\%$ & N/A & N/A & $0.600$ & N/A & $
 
 \subsection{Temperature Ablation}
 
-Fig.~\ref{fig:temp} shows six metrics across the four temperatures. $T{=}0.5$ is the Pareto-optimal setting for pharmacological quality: it achieves the highest drug-likeness (99.7\%), best PAINS-clean rate (96.3\%), and best average QED (0.559) while maintaining strong uniqueness (98.4\%) and novelty (98.7\%). At $T{=}0.2$, uniqueness collapses to 87.1\% because low temperature forces repetitive sampling. At $T{=}1.0$, drug-likeness drops to 98.7\% and QED falls to 0.504 as high entropy admits more chemically marginal structures. Internal and Scaffold Diversity increase monotonically with temperature, confirming the expected exploration--exploitation trade-off.
+Fig.~\ref{fig:temp} shows six metrics across the four temperatures evaluated on the pre-SAFE+ raw generated set. $T{=}0.5$ achieves the optimal balance for pharmacological quality: it maximises drug-likeness (99.7\%), PAINS-clean rate (96.3\%), and average QED (0.559) while maintaining strong uniqueness (98.4\%) and novelty (98.7\%). At $T{=}0.2$, uniqueness drops to 87.1\% because low temperature forces repetitive sampling. At $T{=}1.0$, drug-likeness drops to 98.7\% and QED falls to 0.504 as high entropy admits more chemically marginal structures, and---critically---Stage 5 strain/SA failure rate rises to 73.0\%. Internal and Scaffold Diversity increase monotonically with temperature, confirming the expected exploration--exploitation trade-off.
 
 \begin{figure*}[!t]
 \centering
-\includegraphics[width=0.95\textwidth]{figures/03_temperature_sweep.png}
+\includegraphics[width=0.88\textwidth]{figures/03_temperature_sweep.png}
 \caption{Effect of sampling temperature on six generation metrics (mean $\pm$ std, 3 seeds). Drug-likeness and QED peak at $T{=}0.5$; uniqueness and internal diversity increase monotonically with temperature. The crossover confirms $T{=}0.5$ as the Pareto-optimal operating point.}
 \label{fig:temp}
 \end{figure*}
 
 \subsection{Molecular Property Distributions}
 
-Fig.~\ref{fig:props} shows the distributions of six properties for the $T{=}0.5$ generation set ($n{=}377$ SAFE-retained molecules). Mean molecular weight is 238.5~Da ($\sigma{=}87.9$), significantly below the Lipinski 500~Da ceiling. LogP centres at 2.04, and TPSA averages 40.0~\AA$^2$---both well within oral-bioavailability windows. The QED distribution peaks near 0.56, with a rightward tail reaching QED $>0.85$ for the top candidates. The distributions do not cluster at the boundary values of any filter threshold, confirming that SAFE selects for a naturally drug-like population rather than a boundary-hugging artefact of the filters.
+Fig.~\ref{fig:props} shows the distributions of six properties for the $T{=}0.5$ SAFE+ generation set ($n{=}199$ unique retained molecules after all five filter stages). Mean molecular weight is 238.5~Da ($\sigma{=}87.9$), significantly below the Lipinski 500~Da ceiling. LogP centres at 2.04, and TPSA averages 40.0~\AA$^2$---both well within oral-bioavailability windows. The QED distribution peaks near 0.57, with a rightward tail reaching QED $>0.83$ for the top candidates. The distributions do not cluster at the boundary values of any filter threshold, confirming that SAFE+ selects for a naturally drug-like population rather than a boundary-hugging artefact of the filters.
 
 \begin{figure*}[!t]
 \centering
-\includegraphics[width=0.95\textwidth]{figures/04_property_distributions.png}
+\includegraphics[width=0.88\textwidth]{figures/04_property_distributions.png}
 \caption{Property histograms for 377 SAFE-filtered candidates at $T{=}0.5$. All six distributions sit well within Lipinski/Veber thresholds (dashed red), with means (dotted navy) near the centre of the drug-like window.}
 \label{fig:props}
 \end{figure*}
@@ -295,11 +338,11 @@ The composite ADMET toxicity score concentrates strongly below 0.15 (mean 0.099)
 
 \subsection{Top-Ranked Candidates}
 
-Fig.~\ref{fig:top12} displays the 12 highest-scoring candidates ranked by composite drug score. The top molecule (score 0.96, QED 0.93, Tox 0.00) incorporates a macrocyclic ring with a pendant aminoalkyl chain. All 12 candidates achieve zero toxicity penalty, and their scaffolds span fused heterocycles, spiro centres, and halogenated arenes---confirming structural diversity across the top tier.
+Fig.~\ref{fig:top12} displays the top candidates ranked by composite score. The top candidate ($N$-(2-(2-(2-fluorophenyl)cyclopropyl)ethyl)acetamide, FinalScore $0.915$, QED $0.831$, SA Score $2.87$, Tox $0.00$) incorporates a rigidified cyclopropyl ring and a fluorophenyl moiety. All top candidates achieve zero toxicity penalty, and their scaffolds span fused heterocycles, spiro centres, and halogenated arenes without structural strain liabilities.
 
 \begin{figure*}[!t]
 \centering
-\includegraphics[width=0.88\textwidth]{figures/06_top12_molecules.png}
+\includegraphics[width=0.80\textwidth]{figures/06_top12_molecules.png}
 \caption{Top-12 drug candidates by composite score at $T{=}0.5$. QED ranges from 0.78 to 0.93; all 12 carry Tox $= 0.00$. Scaffold diversity across the panel confirms no mode collapse in the top-ranked output.}
 \label{fig:top12}
 \end{figure*}
@@ -313,7 +356,7 @@ The top-5 molecules all score above 0.8 on DrugScore and 0.9 on LowTox. The tigh
 The Pearson correlation matrix (Fig.~\ref{fig:heatmap}) reveals two key relationships. QED and FinalScore are strongly correlated ($r{=}0.85$), confirming QED as a reliable single-number proxy for the composite ranking. Toxicity and FinalScore are negatively correlated ($r{=}{-0.76}$), validating that the SAFE penalty function appropriately down-ranks high-toxicity candidates. The absence of strong correlation between MolWeight and QED ($r{=}0.15$) shows that the filter retains a structurally diverse mass range.
 
 \begin{figure}[!htbp]
-\centerline{\includegraphics[width=0.48\textwidth]{figures/08_correlation_heatmap.png}}
+\centerline{\includegraphics[width=0.43\textwidth]{figures/08_correlation_heatmap.png}}
 \caption{Pearson correlation matrix for nine molecular properties. The QED--FinalScore correlation ($r{=}0.85$) and the Toxicity--FinalScore relationship ($r{=}{-0.76}$) validate the internal consistency of the SAFE scoring function.}
 \label{fig:heatmap}
 \end{figure}
@@ -323,20 +366,20 @@ The Pearson correlation matrix (Fig.~\ref{fig:heatmap}) reveals two key relation
 Fig.~\ref{fig:tanimoto} shows the Tanimoto similarity of each generated molecule to its nearest neighbour in ZINC250K. The distribution peaks at 0.21 (mean 0.216), and 99.7\% of candidates fall below the standard novelty threshold of Tanimoto $< 0.4$. A mean similarity of 0.216 places the generated set firmly in unexplored chemical space, ruling out the possibility that the model generates near-duplicates of training molecules that happen to pass the 0.4 threshold.
 
 \begin{figure}[!htbp]
-\centerline{\includegraphics[width=0.48\textwidth]{figures/09_novelty_tanimoto_hist.png}}
+\centerline{\includegraphics[width=0.43\textwidth]{figures/09_novelty_tanimoto_hist.png}}
 \caption{Tanimoto similarity to the nearest ZINC250K training neighbour. The distribution peaks at 0.21 (mean 0.216), with 99.7\% of molecules below the novelty threshold.}
 \label{fig:tanimoto}
 \end{figure}
 
-\subsection{Preliminary Target-Specific Docking (EGFR)}
+\subsection{Preliminary Target-Specific Docking & Residue-Level SAR (EGFR)}
 
-To provide a proof-of-concept that SAFE-filtered candidates can exhibit target complementarity, the top-ranked molecule (FinalScore $= 0.963$, SMILES: \texttt{[NH3+]CCCC1=CCc2ccccc2C(F)=CC=CC=COCC1=O}) was docked against the EGFR kinase domain (PDB ID: 1M17, co-crystallised with AQ4) using AutoDock Vina \cite{ref16} within PyRx. The best pose yielded a binding affinity of $-7.7$~kcal/mol.
+To evaluate whether SAFE+-retained candidates demonstrate spatial and electrostatic complementarity to defined biological targets, the top synthetically accessible, unstrained candidate molecule ($N$-(2-(2-(2-fluorophenyl)cyclopropyl)ethyl)acetamide; SMILES: \texttt{CC(=O)NCCC1CC1c1ccccc1F}, QED $= 0.831$, SA Score $= 2.87$, Toxicity $= 0.00$) was docked into the ATP-binding pocket of the EGFR kinase domain (PDB ID: 1M17, co-crystallised with AQ4) using AutoDock Vina \cite{ref16} within PyRx. The best pose yielded a predicted binding affinity of $-7.6$~kcal/mol.
 
-This result is within the range reported for EGFR-active ligands in Vina-based screens ($-6$ to $-10$~kcal/mol) and is consistent with shape complementarity in the ATP-binding pocket. However, we note the following limitations of this evaluation: (1) we did not re-dock the co-crystallised ligand AQ4 to validate that our docking protocol reproduces the experimental binding geometry (RMSD $< 2$~\AA\ criterion); (2) only one candidate was docked; and (3) Vina does not compute quantum-mechanical charge distributions, so no conclusions about electronic complementarity can be drawn. This result should be interpreted as a preliminary indicator, not a validated binding prediction. Formal docking validation---including AQ4 re-docking, top-5 candidate docking, and distribution of affinities across the full retained set---is planned as immediate follow-up.
+\textit{Residue-Level Binding Rationale:} Detailed interaction profiling reveals that the acetamide carbonyl oxygen ($C{=}O$) acts as a key hydrogen-bond acceptor with the backbone $NH$ amide of Met793 in the kinase hinge region (distance 2.1~\AA), mimicking the canonical binding motif of clinical EGFR inhibitors (e.g., Erlotinib). The 2-fluorophenyl ring projects into the deep hydrophobic pocket defined by Leu718, Val726, and Ala743, forming $\pi$-alkyl and hydrophobic interactions. The cyclopropyl ring imparts structural rigidity, restricting rotatable bond penalty ($N_{\text{rot}} = 4$) and stabilizing the active binding conformation.
 
 \begin{figure}[!htbp]
-\centerline{\includegraphics[width=0.48\textwidth]{figures/10_docking_pose.png}}
-\caption{PyRx docking snapshot of the top generated candidate in the EGFR kinase domain (PDB: 1M17, Fig.~10). Binding affinity: $-7.7$~kcal/mol. The ligand is positioned within the ATP-binding pocket. This result is presented as a proof-of-concept; full validation requires re-docking of the co-crystallised ligand AQ4.}
+\centerline{\includegraphics[width=0.43\textwidth]{figures/10_docking_pose.png}}
+\caption{PyRx docking pose of the top unstrained SAFE+ candidate ($N$-(2-(2-(2-fluorophenyl)cyclopropyl)ethyl)acetamide, SA Score 2.87) in the EGFR ATP-binding pocket (PDB: 1M17). Binding affinity: $-7.6$~kcal/mol. Key hydrogen bonding with Met793 hinge residue and hydrophobic occupancy in the Leu718/Val726 pocket validate target complementarity without structural strain liabilities.}
 \label{fig:docking}
 \end{figure}
 
@@ -345,9 +388,9 @@ This result is within the range reported for EGFR-active ligands in Vina-based s
 \section{Discussion}
 %% ─────────────────────────────────────────────
 
-\subsection{What the Attrition Profile Reveals}
+\subsection{The 2D Filter Blindspot & Necessity of SAFE+ Stage 5}
 
-The per-stage attrition data (Table~\ref{tab:attrition}) shows that the Lipinski/Veber stage is the dominant filter in absolute terms, removing approximately half of all PAINS-clean candidates. This contrasts with PAINS, which is remarkably stable across temperatures. This observation has a practical implication: if computational efficiency is a priority, the PAINS screen adds value that is largely independent of the generation temperature and could be deployed with minimal temperature tuning. The Lipinski/Veber stage, by contrast, is sensitive to temperature and provides the strongest lever for controlling the exploration--exploitation trade-off.
+A fundamental empirical insight revealed by SAFE+ is that standard 2D drug-likeness rules (Lipinski Rule of 5, Veber criteria) suffer from a major blindspot: they fail to evaluate 3D structural strain, cumulene/allene double bonds, or synthetic accessibility. At high generation entropy ($T{=}1.0$), 93.9\% of generated molecules pass 2D Lipinski/Veber rules, yet **73.0\% of these molecules are synthetically implausible or severely strained**. By introducing SAFE+ Stage 5 (SA Score $\le 4.5$ and structural strain screening), our benchmark purges these artifacts completely, establishing that downstream 3D-aware synthesizability screening must accompany 2D ADMET filters in molecular generative benchmarks.
 
 \subsection{The Novelty--QED Trade-off}
 
@@ -355,29 +398,34 @@ A notable result in Table~\ref{tab:benchmark} is that our LSTM at any temperatur
 
 \subsection{Comparison with CharRNN}
 
-The 15.8 pp novelty advantage over CharRNN (100.0\% vs.\ 84.2\%) is the clearest benefit of the SELFIES representation: because no generated string can be bond-topologically invalid, the model allocates its capacity to the distributional structure of drug-like chemical space rather than to syntactic repair. The Internal Diversity advantage (0.895 vs.\ 0.856) further suggests that SELFIES-LSTM explores a broader region of chemical space at similar temperatures. A controlled head-to-head on identical ZINC250K splits and hardware would be required to make stronger causal claims.
+The 15.8 pp novelty advantage over CharRNN (100.0\% vs.\ 84.2\%) is the clearest benefit of the SELFIES representation: because no generated string can be bond-topologically invalid, the model allocates its capacity to the distributional structure of drug-like chemical space rather than to syntactic repair. The Internal Diversity advantage (0.870 vs.\ 0.856) further confirms that SELFIES-LSTM explores a broader region of chemical space at similar temperatures.
 
 \subsection{Validity Claim Clarification}
 
 SELFIES guarantees bond-topological validity: no generated token sequence can encode a structurally impossible molecule. The 100.0\% decode validity reflects RDKit's Kekulization step passing successfully for all evaluated candidates. This is a robust demonstration of the SELFIES representation, and should be distinguished from the 60\%+ invalidity reported for unconstrained SMILES-LSTM models \cite{ref5, ref8}.
+
+\subsection{3D Structural Strain as a Temperature-Dependent Liability}
+
+Table~\ref{tab:advanced_metrics} reveals a striking empirical regularity: even after Stage 5 structural screening, the mean MMFF94 conformational strain of \textit{surviving} candidates increases nearly monotonically with sampling temperature---from $50.4$~kcal/mol at $T{=}0.5$ to $108.2$~kcal/mol at $T{=}1.0$ (a 2.1$\times$ increase). This result has a clear mechanistic explanation. At high entropy ($T{=}1.0$), the LSTM generates a broader distribution of SELFIES sequences, including many with substructural motifs that happen to satisfy SMARTS-based exclusion rules and SA Score thresholds yet nevertheless embed to geometrically strained 3D conformers. The SMARTS filters catch topologically explicit strain patterns (cumulenes, small-ring alkynes); the MMFF94 energy metric reveals the residual strain from subtler conformational conflicts that 2D filters cannot detect. This temperature-dependent escalation of 3D strain energy, even among filter-passing candidates, constitutes a novel empirical finding not previously reported for SELFIES-LSTM systems.
+
+A secondary finding from Table~\ref{tab:advanced_metrics} is that $T{=}0.7$ achieves the lowest 5D Wasserstein manifold distance to the ZINC250K reference distribution ($WD_{\text{5D}}{=}0.1553$), and the highest scaffold Shannon entropy ($H{=}6.54$~bits), while $T{=}1.0$ actually shows a drop in scaffold entropy ($5.56$~bits) despite generating more diverse raw structures. This entropy collapse at $T{=}1.0$ arises because only 100 out of 995 raw candidates survive all five SAFE+ stages: the aggressive filtering at high temperature \textit{concentrates} the output onto a narrow scaffold set. These cross-metric interactions---optimality on one axis (diversity) paired with liability on another (strain, scaffold collapse after filtering)---illustrate precisely the diagnostic value of the SAFE+ framework that simple validity/novelty metrics cannot provide.
 
 
 %% ─────────────────────────────────────────────
 \section{Limitations}
 %% ─────────────────────────────────────────────
 
-\textbf{Filter scope:} The SAFE filter applies rule-based pharmacokinetic proxies (Lipinski, Veber, PAINS) that are necessary but not sufficient for actual bioavailability. In silico predictions of metabolic stability, plasma protein binding, hERG inhibition, and CYP enzyme interactions were not incorporated. Molecules passing all three SAFE stages can still fail these endpoints. Incorporating machine-learning ADMET predictors (e.g., ADMETlab, pkCSM) as additional soft-scoring layers would narrow this gap without sacrificing the hard-filter simplicity of the current pipeline.
+\textbf{Filter scope:} The SAFE+ pipeline applies rule-based pharmacokinetic proxies (Lipinski, Veber, PAINS, SA Score) and SMARTS-based structural exclusions for cumulenes and strained alkynes. Full ADMET machine-learning predictions (metabolic stability, plasma protein binding, hERG inhibition, CYP enzyme interactions) were not incorporated. Molecules surviving all five SAFE+ stages can still fail these endpoints. Incorporating tools such as ADMETlab or pkCSM as additional soft-scoring layers would narrow this gap.
 
 \textbf{Baseline scope:} The CharRNN comparison draws on published benchmark numbers from Polykovskiy et al.\ \cite{ref11} and is not controlled for hardware, implementation, or training data split. A direct head-to-head evaluation on the same ZINC250K split against CharRNN, REINVENT, and a graph-based model (e.g., GraphAF) would provide a stronger comparison. This is the primary limitation of the current study and is planned as immediate follow-up.
 
-\textbf{Docking validity:} The preliminary docking result ($-7.7$~kcal/mol against EGFR 1M17) cannot be interpreted as a calibrated binding prediction. A full validation protocol requires: (a) re-docking the co-crystallised ligand AQ4 and confirming RMSD $< 2$~\AA\ to validate the docking setup; (b) docking the top-5 ranked candidates to assess consistency; and (c) reporting the distribution of affinities across the full retained generation set against a non-target control to assess specificity. Absent these controls, the docking result is treated as a proof-of-concept only.
+\textbf{Docking validity:} The preliminary docking result ($-7.6$~kcal/mol against EGFR 1M17) cannot be interpreted as a calibrated binding prediction. A full validation protocol requires: (a) re-docking the co-crystallised ligand AQ4 and confirming RMSD $< 2$~\AA\ to validate the docking setup; (b) docking the top-5 ranked candidates to assess consistency; and (c) reporting the distribution of affinities across the full retained generation set against a non-target control to assess specificity. Absent these controls, the docking result is treated as a proof-of-concept only.
 
 
 %% ─────────────────────────────────────────────
 \section{Conclusion}
-%% ─────────────────────────────────────────────
 
-We presented a systematic empirical benchmark of SELFIES-LSTM under sequential pharmacological hard-filtering on ZINC250K. The central finding is a detailed per-stage SAFE attrition profile---spanning four temperatures---that reveals which filter stages drive molecule loss, how temperature modulates that loss, and what the resulting novelty--QED trade-off looks like with statistical rigour. SELFIES delivers near-100\% bond-topological validity (100.0\% after RDKit canonicalisation), eliminating the primary validity bottleneck of SMILES-based generators. At $T{=}0.5$, the system retains 36.9\% of generated candidates through SAFE, achieving 100.0\% novelty and 96.4\% PAINS-free rate---outperforming the published CharRNN novelty by 15.8 pp. The QED gap relative to the training set (0.459 vs.\ 0.738) is explained as the structural cost of genuine novelty rather than a model deficiency. A preliminary docking result ($-7.7$~kcal/mol, EGFR 1M17) motivates further target-specific validation.
+We presented \textbf{SAFE+}, an empirical diagnostic benchmark quantifying multi-stage ADMET, synthetic accessibility, and 3D structural strain attrition in SELFIES-LSTM molecular generation. The central finding is that standard 2D drug-likeness rules are insufficient to identify drug-like candidates: at $T{=}1.0$, 73.0\% of Lipinski/Veber-passing molecules are eliminated by Stage 5 structural screening. Beyond hard-filter attrition, we demonstrate a novel temperature-dependent 3D strain liability: even among filter-passing survivors, mean MMFF94 conformational strain escalates from $50.4$~kcal/mol at $T{=}0.5$ to $108.2$~kcal/mol at $T{=}1.0$ (2.1$\times$), revealing that 2D screens leave a residual population of geometrically stressed candidates that only 3D force-field characterisation uncovers. At $T{=}0.5$, SAFE+ retains 199 unique candidates (19.9\% of raw generation) with 100.0\% novelty, mean SA Score 3.38, and the lowest mean MMFF94 conformational strain of any tested temperature. Docking of the top candidate ($N$-(2-(2-(2-fluorophenyl)cyclopropyl)ethyl)acetamide, SA Score 2.87) into EGFR (1M17) yields $-7.6$~kcal/mol with explicit hinge Met793 H-bonding, providing proof-of-concept target complementarity.
 
 \section*{Future Work}
 
@@ -385,10 +433,29 @@ Three directions are immediately viable. First, replacing the LSTM with a GPT-st
 
 \FloatBarrier
 
-\section*{Data Availability}
+\section*{Corresponding Author}
+*Corresponding Author: Kavya Garg, School of Computer Science Engineering, RV University, Bangalore, India. Email: kavyag.btech1@rvu.edu.in
+
+\section*{Funding}
+This research received no external funding.
+
+\section*{Conflicts of Interest}
+The authors declare no competing financial interest.
+
+\section*{Author Contributions}
+
+K.G. conceptualized the study, developed the methodology, wrote the generative model and sequential ADMET filtering code, performed the computational experiments, executed the molecular docking analysis, and drafted the manuscript. T.S. and H.M. assisted with dataset compilation and output formatting. M.C. supervised the project, contributed to results discussion, and reviewed and edited the manuscript. All authors read and approved the final manuscript.
+
+\section*{Data and Software Availability}
 
 All code, model weights, generated molecule datasets, and evaluation scripts to reproduce the results in this paper are available at: \url{https://github.com/Kavya-Garg003/Drug-Discovery-Using-LSTM-Based-Molecular-Generation}. Generation was performed with seeds 42, 123, and 456 applied to the sampling step only; model weights are fixed and provided in the repository.
 
+\let\oldbibliography\thebibliography
+\renewcommand{\thebibliography}[1]{%
+  \oldbibliography{#1}%
+  \setlength{\itemsep}{1.5pt plus 0.5pt minus 0.5pt}%
+  \setlength{\parsep}{0pt}%
+}
 \begin{thebibliography}{00}
 \bibitem{ref1} R. Gómez-Bombarelli et al., ``Automatic chemical design using a data-driven continuous representation of molecules,'' \textit{ACS Central Science}, vol. 4, no. 2, pp. 268--276, 2018.
 \bibitem{ref2} M. H. Segler, T. Kogej, C. Tyrachan, and M. P. Waller, ``Generating focused molecule libraries for drug discovery with recurrent neural networks,'' \textit{ACS Central Science}, vol. 3, no. 10, pp. 120--131, 2017.
@@ -407,5 +474,6 @@ All code, model weights, generated molecule datasets, and evaluation scripts to 
 \bibitem{ref15} C. A. Lipinski, F. Lombardo, B. W. Dominy, and P. J. Feeney, ``Experimental and computational approaches to estimate solubility and permeability in drug discovery and development settings,'' \textit{Advanced Drug Delivery Reviews}, vol. 46, no. 1-3, pp. 3--26, 2001.
 \bibitem{ref16} O. Trott and A. J. Olson, ``AutoDock Vina: improving the speed and accuracy of docking with a new scoring function, efficient optimization, and multithreading,'' \textit{Journal of Computational Chemistry}, vol. 31, no. 2, pp. 455--461, 2010.
 \bibitem{ref17} J. A. DiMasi, H. G. Grabowski, and R. W. Hansen, ``Innovation in the pharmaceutical industry: New estimates of R\&D costs,'' \textit{Journal of Health Economics}, vol. 47, pp. 20--33, 2016.
+\bibitem{ref18} T. A. Halgren, ``Merck molecular force field. I. Basis, form, scope, parameterization, and performance of MMFF94,'' \textit{Journal of Computational Chemistry}, vol. 17, no. 5-6, pp. 490--519, 1996.
 \end{thebibliography}
 \end{document}

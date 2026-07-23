@@ -51,6 +51,12 @@ class CFG:
     MAX_TPSA       = 140.0       # Veber oral bioavailability criterion
     MAX_ROT_BONDS  = 10          # Veber criterion
 
+    # -- SAFE+ Stage 4 & 5: Structural Strain & Synthetic Accessibility ----
+    MAX_SA_SCORE       = 4.5     # Ertl Synthetic Accessibility Score (<= 4.5 is drug-like)
+    ALLOW_CUMULENES    = False   # Filter out C=C=C / X=C=Y cumulene artifacts
+    ALLOW_STRAINED_RING= False   # Filter out alkynes in rings < 8 atoms & bridgehead violations
+    MAX_MMFF_STRAIN    = 35.0    # Max MMFF94 conformational strain energy (kcal/mol)
+
     # -- Toxicity (ADMET proxy) --------------------------------------------─
     # Score = weighted combo of TPSA, logP, MW, PAINS; lower = safer
     TOX_TPSA_WEIGHT  = 0.30

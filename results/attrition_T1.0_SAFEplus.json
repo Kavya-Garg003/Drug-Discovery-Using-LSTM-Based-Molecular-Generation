@@ -1,0 +1,15 @@
+{
+  "stage_0_generated": 995,
+  "stage_1_rdkit_valid": 995,
+  "stage_2_geometric": 420,
+  "stage_3_pains": 394,
+  "stage_4_lipinski_veber": 370,
+  "stage_5_strain_sa": 100,
+  "stage_6_unique_final": 100,
+  "pct_rdkit_valid": 100.0,
+  "pct_geometric": 42.2,
+  "pct_pains": 93.8,
+  "pct_lipinski_veber": 93.9,
+  "pct_strain_sa": 27.0,
+  "pct_overall_retained": 10.1
+}
