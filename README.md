@@ -245,8 +245,6 @@ python run.py --quick
 
 **Affiliation:** School of Computer Science Engineering, RV University, Bangalore, India
 
-**Submitted to:** ACS Omega
-
 ---
 
 **Corresponding Author:** Kavya Garg — kavyag.btech1@rvu.edu.in
